@@ -50,3 +50,93 @@ HTTP请求信息和响应信息的格式
 		503 服务器暂时不可用
 		500 服务器内部错误
 		
+		
+		
+HTTP缓存控制
+观察图片的下载：
+第一次请求 200 
+第二次请求 304 未修改
+
+解释：在网络上，有一些缓存服务器，另，浏览器自身也有缓存功能。当我们第一次访问某图片时，正常下载图片，返回200
+第二次访问时，基于一个前提，图片不会经常改动，服务器在返回200的同时，还返回该图片的 ‘签名’ --Etag,签名可以理解为图片的‘指纹’。当浏览器再次访问该图片时，去服务器校验指纹。如果图片没有变化，直接使用缓存图片，这样减轻了服务器的负担。
+
+如果网站比较大，有N台缓存服务器，那么这N台缓存服务器，如何处理缓存主服务器上的文件。
+1、要不要缓存。
+2、缓存多久？
+
+思考--这说明缓存服务器与主服务器之前，应该有一些协议来说明这2个问题？用http头信息，cache-control来控制
+
+具体用法：
+在主服务器，打开apache的expires扩展，利用该扩展来控制图片、css、html是否缓存及缓存生存周期。
+
+在.htaccess中：
+ExpiresDefault "<base> [plus] {<num> <type>}*"
+ExpiresByType type/encoding "<base> [plus] {<num> <type>}*"
+ExpiresDefault 设置默认的缓存参数
+ExpiresByType 按照文件类型来设计独特的缓存参数
+
+Base:基于哪个时间点来计算缓存有效期
+  Access/now ：基于请求响应的那一瞬间
+  modification:基于被请求文件的最后修改日期来计算，如：被修改后的一周内仍然有效。
+
+num:缓存时间的大小  （30）
+type:缓存时间的单位 （天）
+
+我们能否设置服务器不让有缓存呢？
+比如有些个人信息，不允许缓存服务器缓存，必须到主服务器去缓存。
+control-cache:no-store,must-revalidate;//这个控制项意味着不允许缓存，必须去主服务器请求
+
+可以利用apache的header模块，
+
+
+
+
+
+HTTP与内容压缩：
+原理：为了提高网页在网络上的传输速度，服务器对主体信息进行编码压缩，如常见的gzip,deflate.compress及google chrome的sdch压缩。
+
+如何在apache中启用压缩功能？
+1：开启deflate模块或gzip模块
+2：在http.conf文件中，写压缩配置
+<ifmodule mod_delate.c>
+DeflateCompressionLevel 6 #压缩级别为6 可选为1-9 推荐为6
+AddOutputFilterByType DEFLATE text/plain # 压缩文本文件
+AddOutputFilterByType DEFLATE text/html # 压缩html文件
+</ifmodule>
+为什么要指定文件类型来压缩？
+答：压缩也要耗CPU资源的，图片/视频等文件，压缩效果也不好,一般压缩文本格式
+
+服务器怎么知道浏览器支持gzip的？
+答：浏览器允许发一个Accept-encoding头信息，与服务器协商。
+
+小技巧：当我们在采集时，可以不发送accept-Encoding信息，这样采集到的是直接源码，当然，也可以采集gzip（提高速度）,在用php解压gzip
+
+
+HTTP与持久连接+分块传输---》反向ajax
+反向ajax又叫comet,server push服务器推技术
+
+应用范围：网页聊天服务器，新浪微博在线聊天
+
+原理：一般而言，HTTP协议的特点，连接--断开
+具体什么时间断开？
+服务器响应content-length,收到指定lenght长度内容时，也就断开了。
+
+在HTTP1.1协议中，允许你不写content-length,比如要发送的内容长度确实不知道时，这时需要一个特殊的content-type:chunked,
+
+分块传输的原理：
+	比如：123H\r\n 
+	发0\r\n（服务器发完了）
+	
+	set_time_limit(0)让浏览器不超时
+
+
+
+
+
+
+
+
+
+
+
+
