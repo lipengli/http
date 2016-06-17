@@ -1,16 +1,16 @@
 <?php 
-
+set_time_limit(0);
 interface Https{
 	/**
-	*	get·½·¨
+	*	getæ–¹æ³•
 	*/
 	function get();
 	/**
-	*	post·½·¨
+	*	postæ–¹æ³•
 	*/
 	function post();
 	/**
-	*	Á¬½Ó
+	*	è¿æ¥
 	*/
 	function connect($url);
 }
@@ -18,93 +18,98 @@ interface Https{
 class HttpSocket implements Https
 {
 	/**
-	*	$httpResource return fsockopen open resource ·µ»Øfsockopen´ò¿ªµÄ×ÊÔ´
+	*	$httpResource return fsockopen open resource è¿”å›fsockopenæ‰“å¼€çš„èµ„æº
 	*/
 	protected $httpResource = null;
 	
 	/**
-	*	$httpReponse return http reponse information ·µ»ØhttpÏìÓ¦ĞÅÏ¢
+	*	$httpReponse return http reponse information è¿”å›httpå“åº”ä¿¡æ¯
 	*/
 	protected $httpReponse = null;
 	
 	/**
-	*	$httpUrl return url array analysis ·µ»Ø·ÖÎöµÄurlÊı×é
+	*	$httpUrl return url array analysis è¿”å›åˆ†æçš„urlæ•°ç»„
 	*/
 	protected $httpUrl = array();
 	
 	/**
-	*	$httpLine return http request line ·µ»ØhttpÇëÇóĞĞ
+	*	$httpLine return http request line è¿”å›httpè¯·æ±‚è¡Œ
 	*/
 	protected $httpLine = '';
 	
 	/**
-	*	$httpHead return http request head ·µ»ØhttpÇëÇóÍ·ĞÅÏ¢
+	*	$httpHead return http request head è¿”å›httpè¯·æ±‚å¤´ä¿¡æ¯
 	*/
-	protected $httpHead = '';
+	protected $httpHead = array();
 	
 	/**
-	*	$httpBody return http request body ·µ»ØhttpÇëÇóÖ÷ÌåĞÅÏ¢
+	*	$httpBody return http request body è¿”å›httpè¯·æ±‚ä¸»ä½“ä¿¡æ¯
 	*/
-	protected $httpBody = array();
+	protected $httpBody = '';
 	
 	/**
-	*	$errno return fsockopen error code,defalute -1 ·µ»ØfsockopenµÄ´íÎó´úÂë
+	*	$errno return fsockopen error code,defalute -1 è¿”å›fsockopençš„é”™è¯¯ä»£ç 
 	*/
 	protected $errno = -1;
 	
 	/**
-	*	$errstr return fsockopen error message ,defalute empty ·µ»ØfsockopenµÄ´íÎóĞÅÏ¢
+	*	$errstr return fsockopen error message ,defalute empty è¿”å›fsockopençš„é”™è¯¯ä¿¡æ¯
 	*/
 	protected $errstr = '';
 	
 	/**
-	*	$timeout return fsockopen request timeout,defalute 10 ·µ»ØfsockopenÇëÇóµÄ³¬Ê±Ê±¼ä
+	*	$timeout return fsockopen request timeout,defalute 10 è¿”å›fsockopenè¯·æ±‚çš„è¶…æ—¶æ—¶é—´
 	*/
 	protected $timeout = 10;
 	
 	/**
-	*	$httpVersion return HTTP version ·µ»ØÊ¹ÓÃµÄhttp°æ±¾
+	*	$httpVersion return HTTP version è¿”å›ä½¿ç”¨çš„httpç‰ˆæœ¬
 	*/
 	protected $httpVersion = 'HTTP/1.1';
 	
 	/**
-	*	$CRLF »Ø³µ»»ĞĞ
+	*	$CRLF å›è½¦æ¢è¡Œ
 	*/
 	const CRLF = "\r\n";
 	
 	public function __construct($url){
 		$this->connect($url);
-		$this->setHttpHead();
 	}
 	
 	/**
-	*	set httpLine ÉèÖÃhttpline
+	*	set httpLine è®¾ç½®httpline
 	*/
-	protected function setHttpLine($method){
+	public function setHttpLine($method){
 		$this->httpLine = $method." ".$this->httpUrl['path'].' '.$this->httpVersion.self::CRLF;
 	}
 	
 	/**
-	*	set httpHead ÉèÖÃhttpHead
+	*	set httpBody è®¾ç½®httpHead
 	*/
-	protected function setHttpHead(){
-		$this->httpHead = 'Host:'.$this->httpUrl['host'].self::CRLF;
+	public function setHttpBody($str){
+		$this->httpBody = http_build_query($str);
 	}
 	
 	/**
-	*	set httpBody ÉèÖÃhttpBody
+	*	set httpHead è®¾ç½®httpBody
 	*/
-	public function setHttpBody($options){
-		if(array_key_exists('Content-type',$options)){
-			$this->httpBody[] = "Content-type:".$options['Content-type'].self::CRLF;
-		}
+	public function setHttpHead($options = []){
+		$this->httpHead[] = 'Host:'.$this->httpUrl['host'].self::CRLF;
 		if(array_key_exists('Content-length',$options)){
-			$this->httpBody[] = "Content-length:".$options['Content-length'].self::CRLF;
+			$this->httpHead[] = "Content-length:".strlen($this->httpBody).self::CRLF;
 		}
+		if(array_key_exists('Content-type',$options)){
+			$this->httpHead[] = "Content-type:".$options['Content-type'].self::CRLF;
+		}
+		
+		if(array_key_exists('Cookie',$options)){
+			$this->httpHead[] = "Cookie:".$options['Cookie'].self::CRLF;
+		}
+		$this->httpHead[] = "Connection: Close";
 	}
 		
 	/**
-	*	http get request  get·½·¨ÊµÏÖ
+	*	http get request  getæ–¹æ³•å®ç°
 	*/
 	public function get(){
 		$this->setHttpLine("GET");
@@ -113,7 +118,7 @@ class HttpSocket implements Https
 	}
 	
 	/**
-	*	http post request post·½·¨ÊµÏÖ
+	*	http post request postæ–¹æ³•å®ç°
 	*/
 	public function post(){
 		$this->setHttpLine("POST");
@@ -122,7 +127,7 @@ class HttpSocket implements Https
 	}
 	
 	/**
-	*	fsockopen request connect Á¬½ÓÊµÏÖ
+	*	fsockopen request connect è¿æ¥å®ç°
 	*/
 	public function connect($url){
 		$this->httpUrl = parse_url($url);
@@ -136,10 +141,12 @@ class HttpSocket implements Https
 	}
 	
 	/**
-	*	Êµ¼ÊµÄÇëÇó·½·¨
+	*	å®é™…çš„è¯·æ±‚æ–¹æ³•
 	*/
 	protected function request(){
-		$fsockopenOut = $this->httpLine . $this->httpHead .'Connection: Close'. self::CRLF .implode(self::CRLF,$this->httpBody) . self::CRLF ;
+		$fsockopenOut = $this->httpLine . implode('',$this->httpHead). self::CRLF.self::CRLF  . $this->httpBody . self::CRLF ;
+		//echo $fsockopenOut;
+		//die;
 		fwrite($this->httpResource,$fsockopenOut);
 		while(!feof($this->httpResource)){
 			$this->httpReponse .= fgets($this->httpResource, 1024);
@@ -147,5 +154,3 @@ class HttpSocket implements Https
 		fclose($this->httpResource);
 	}
 }
-$http = new HttpSocket('http://www.baidu.com/');
-echo $http->get();
